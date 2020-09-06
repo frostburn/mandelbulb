@@ -12,12 +12,12 @@ def make_picture_frame(rgb, dither=1.0/256.0):
 
 if __name__ == '__main__':
     scale = 10
-    u_samples = 2**12
+    u_samples = 2**11
     theta = 0.75
     phi = 0.5
     anti_aliasing = 4
-    exponent = 3
-    max_iter = 40
+    exponent = 8
+    max_iter = 21
 
     grid_x = linspace(-1.2, 1.2, scale*108)
     grid_y = linspace(-1.2, 1.1, scale*108)
@@ -28,6 +28,11 @@ if __name__ == '__main__':
 
     grid_x, grid_y = meshgrid(grid_x, grid_y)
 
+    # val = mandelbulb(0, 0, 0, grid_x, grid_y, 0, exponent, max_iter)
+    # imshow(val)
+    # show()
+    # asdfsadf
+
     result = array([0*grid_x, 0*grid_x, 0*grid_x])
 
     lock = Lock()
@@ -37,8 +42,8 @@ if __name__ == '__main__':
         x = grid_x + offset_x
         y = grid_y + offset_y
 
-        red = ones(x.shape) * 4.0
-        green = ones(x.shape) * 3.2
+        red = ones(x.shape) * 2.0
+        green = ones(x.shape) * 1.2
         blue = ones(x.shape) * 2.0
         for z in u:
             x_ = cos(theta) * x + sin(theta) * z
@@ -47,23 +52,23 @@ if __name__ == '__main__':
             z_ = cos(phi) * z_ - sin(phi) * y
             val = mandelbulb(x_, y_, z_, x_, y_, z_, exponent, max_iter)
             core = (val == 0)
-            absorption = 5*exp(-0.125*val)
+            absorption = 10*exp(-(0.1*(val-1))**2)
             absorption[core] = 5
-            red += 40*core * du
+            red += 30*core * du
             red *= exp(-du * absorption)
 
-            absorption = 10*exp(-0.13*val)
-            absorption[core] = 4.2
-            green += 40*core * du
+            absorption = 10*exp(-(0.15*(val-2.5))**2)
+            absorption[core] = 4.5
+            green += 30*core * du
             green *= exp(-du * absorption)
 
-            absorption = 10*exp(-0.135*val)
+            absorption = 10*exp(-(0.2*(val-4))**2)
             absorption[core] = 2.5
-            blue += 20*core * du
+            blue += 15*core * du
             blue *= exp(-du * absorption)
 
         lock.acquire()
-        result += array([red, green, blue])*0.1
+        result += array([red**1.3, green**1.1, blue**1.2])*0.092
         lock.release()
 
 

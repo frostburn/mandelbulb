@@ -42,20 +42,39 @@ ffibuilder.set_source(
             x *= r;
             y *= r;
 
-            if (exponent == 2) {
+            if (exponent == 2 || exponent == 4 || exponent == 8) {
                 l -= z*z;
                 z *= 2*t;
 
                 t = x;
                 x = x*x - y*y;
                 y *= 2*t;
-            } else if (exponent == 3) {
+            }
+            if (exponent == 3) {
                 l = t*(l - 3*z*z);
                 z = z*(3*t*t - z*z);
 
                 t = x;
                 x = x*(x*x - 3*y*y);
                 y = y*(3*t*t - y*y);
+            }
+            if (exponent == 4 || exponent == 8) {
+                t = l;
+                l = l*l - z*z;
+                z *= 2*t;
+
+                t = x;
+                x = x*x - y*y;
+                y *= 2*t;
+            }
+            if (exponent == 8) {
+                t = l;
+                l = l*l - z*z;
+                z *= 2*t;
+
+                t = x;
+                x = x*x - y*y;
+                y *= 2*t;
             }
 
             x = x*l + cx;
