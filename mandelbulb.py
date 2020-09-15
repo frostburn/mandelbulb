@@ -1,7 +1,7 @@
 import numpy as np
 from _routines import ffi, lib
 
-def mandelbulb(x, y, z, cx, cy, cz, exponent, max_iter, shape=None):
+def mandelbulb(x, y, z, cx, cy, cz, exponent_theta, exponent_phi, exponent_r, max_iter, shape=None):
     if shape is None:
         for w in (x, y, z, cx, cy, cz):
             if hasattr(w, 'shape'):
@@ -30,7 +30,7 @@ def mandelbulb(x, y, z, cx, cy, cz, exponent, max_iter, shape=None):
     lib.smooth_mandelbulb(
         x_buf, y_buf, z_buf,
         cx_buf, cy_buf, cz_buf,
-        result_buf, exponent, max_iter,
+        result_buf, exponent_theta, exponent_phi, exponent_r, max_iter,
         result.size
     )
 

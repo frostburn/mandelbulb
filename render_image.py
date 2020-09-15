@@ -11,12 +11,14 @@ def make_picture_frame(rgb, dither=1.0/256.0):
     return frame
 
 if __name__ == '__main__':
-    scale = 10
-    u_samples = 2**11
+    scale = 3
+    u_samples = 2**9
     theta = 0.75
     phi = 0.5
-    anti_aliasing = 4
-    exponent = 8
+    anti_aliasing = 2
+    exponent_theta = 9
+    exponent_phi = 7
+    exponent_r = 9
     max_iter = 21
 
     grid_x = linspace(-1.2, 1.2, scale*108)
@@ -27,11 +29,6 @@ if __name__ == '__main__':
     du = u[1] - u[0]
 
     grid_x, grid_y = meshgrid(grid_x, grid_y)
-
-    # val = mandelbulb(0, 0, 0, grid_x, grid_y, 0, exponent, max_iter)
-    # imshow(val)
-    # show()
-    # asdfsadf
 
     result = array([0*grid_x, 0*grid_x, 0*grid_x])
 
@@ -50,7 +47,7 @@ if __name__ == '__main__':
             z_ = cos(theta) * z - sin(theta) * x
             y_ = cos(phi) * y + sin(phi) * z_
             z_ = cos(phi) * z_ - sin(phi) * y
-            val = mandelbulb(x_, y_, z_, x_, y_, z_, exponent, max_iter)
+            val = mandelbulb(x_, y_, z_, x_, y_, z_, exponent_theta, exponent_phi, exponent_r, max_iter)
             core = (val == 0)
             absorption = 10*exp(-(0.1*(val-1))**2)
             absorption[core] = 5

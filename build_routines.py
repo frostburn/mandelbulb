@@ -4,16 +4,11 @@ ffibuilder = FFI()
 
 ffibuilder.cdef(
     """
-    double smooth_mandelbulb_eval(
-        double x, double y, double z,
-        double cx, double cy, double cz,
-        int exponent, int max_iterations
-    );
     void smooth_mandelbulb(
         double *x, double *y, double *z,
         double *cx, double *cy, double *cz,
         double *out,
-        int exponent, int max_iterations, int num_samples
+        int exponent_theta, int exponent_phi, int exponent_r, int max_iterations, int num_samples
     );
     """
 )
@@ -24,62 +19,69 @@ ffibuilder.set_source(
 
     double EPSILON = 1e-12;
 
+    inline double r_pow(double r, int exponent) {
+        double result = 1;
+        while (exponent > 0) {
+            if (exponent & 1) {
+                result *= r;
+            }
+            r *= r;
+            exponent >>= 1;
+        }
+        return result;
+    }
+
+    inline void c_pow(double *x, double *y, int exponent) {
+        double cx = *x;
+        double cy = *y;
+        double t;
+        *x = 1;
+        *y = 0;
+        while (exponent > 0) {
+            if (exponent & 1) {
+                t = *x;
+                *x = cx*(*x) - cy*(*y);
+                *y = cx*(*y) + cy*t;
+            }
+            t = cx;
+            cx = cx*cx - cy*cy;
+            cy *= 2*t;
+            exponent >>= 1;
+        }
+    }
+
     double smooth_mandelbulb_eval(
         double x, double y, double z,
         double cx, double cy, double cz,
-        int exponent, int max_iterations
+        int exponent_theta, int exponent_phi, int exponent_r, int max_iterations
     ) {
         int i;
         for (i = 0; i < max_iterations; ++i) {
             double l = x*x + y*y;
             double r = l + z*z;
             if (r > 256) {
-                return (log(log(r)*0.5) - 1.0197814405382262)/log(exponent)- i + max_iterations + 1;
+                return (log(log(r)*0.5) - 1.0197814405382262)/log(exponent_r)- i + max_iterations + 1;
             }
 
-            double t = sqrt(l);
-            r = 1.0 / (t + (t < EPSILON));
-            x *= r;
-            y *= r;
+            l = sqrt(l);
+            double t = 1.0 / (l + (l < EPSILON));
+            x *= t;
+            y *= t;
 
-            if (exponent == 2 || exponent == 4 || exponent == 8) {
-                l -= z*z;
-                z *= 2*t;
+            r = sqrt(r);
+            t = 1.0 / (r + (r < EPSILON));
+            l *= t;
+            z *= t;
 
-                t = x;
-                x = x*x - y*y;
-                y *= 2*t;
-            }
-            if (exponent == 3) {
-                l = t*(l - 3*z*z);
-                z = z*(3*t*t - z*z);
+            r = r_pow(r, exponent_r);
+            c_pow(&x, &y, exponent_theta);
+            c_pow(&l, &z, exponent_phi);
 
-                t = x;
-                x = x*(x*x - 3*y*y);
-                y = y*(3*t*t - y*y);
-            }
-            if (exponent == 4 || exponent == 8) {
-                t = l;
-                l = l*l - z*z;
-                z *= 2*t;
-
-                t = x;
-                x = x*x - y*y;
-                y *= 2*t;
-            }
-            if (exponent == 8) {
-                t = l;
-                l = l*l - z*z;
-                z *= 2*t;
-
-                t = x;
-                x = x*x - y*y;
-                y *= 2*t;
-            }
+            l *= r;
 
             x = x*l + cx;
             y = y*l + cy;
-            z += cz;
+            z = z*r + cz;
         }
         return 0;
     }
@@ -88,13 +90,13 @@ ffibuilder.set_source(
         double *x, double *y, double *z,
         double *cx, double *cy, double *cz,
         double *out,
-        int exponent, int max_iterations, int num_samples
+        int exponent_theta, int exponent_phi, int exponent_r, int max_iterations, int num_samples
     ) {
         for (int i = 0; i < num_samples; ++i) {
             out[i] = smooth_mandelbulb_eval(
                 x[i], y[i], z[i],
                 cx[i], cy[i], cz[i],
-                exponent, max_iterations
+                exponent_theta, exponent_phi, exponent_r, max_iterations
             );
         }
     }
