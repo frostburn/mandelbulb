@@ -4,6 +4,8 @@ ffibuilder = FFI()
 
 ffibuilder.cdef(
     """
+    void pow3d(double *x, double *y, double *z, int exponent_theta, int exponent_phi, int exponent_r, int num_samples);
+
     void smooth_mandelbulb(
         double *x, double *y, double *z,
         double *cx, double *cy, double *cz,
@@ -50,13 +52,46 @@ ffibuilder.set_source(
         }
     }
 
+    void pow3d(double *x, double *y, double *z, int exponent_theta, int exponent_phi, int exponent_r, int num_samples) {
+        for (int i = 0; i < num_samples; ++i) {
+            double l = x[i]*x[i] + y[i]*y[i];
+            double r = l + z[i]*z[i];
+            l = sqrt(l);
+            double t = 1.0 / (l + (l < EPSILON));
+            x[i] *= t;
+            y[i] *= t;
+
+            r = sqrt(r);
+            t = 1.0 / (r + (r < EPSILON));
+            l *= t;
+            z[i] *= t;
+
+            r = r_pow(r, abs(exponent_r));
+            c_pow(x + i, y + i, abs(exponent_theta));
+            c_pow(&l, z + i, abs(exponent_phi));
+
+            if (exponent_theta < 0) {
+                y[i] = -y[i];
+            }
+            if (exponent_phi < 0) {
+                z[i] = -z[i];
+            }
+            if (exponent_r < 0) {
+                r = 1.0/r;
+            }
+            l *= r;
+            x[i] *= l;
+            y[i] *= l;
+            x[i] *= r;
+        }
+    }
+
     double smooth_mandelbulb_eval(
         double x, double y, double z,
         double cx, double cy, double cz,
         int exponent_theta, int exponent_phi, int exponent_r, int max_iterations
     ) {
-        int i;
-        for (i = 0; i < max_iterations; ++i) {
+        for (int i = 0; i < max_iterations; ++i) {
             double l = x*x + y*y;
             double r = l + z*z;
             if (r > 256) {
@@ -82,6 +117,10 @@ ffibuilder.set_source(
             x = x*l + cx;
             y = y*l + cy;
             z = z*r + cz;
+
+            t = cy;
+            cy = 0.95*cy + 0.1*cz;
+            cz = 0.95*cz - 0.1*t;
         }
         return 0;
     }

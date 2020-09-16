@@ -1,6 +1,33 @@
 import numpy as np
 from _routines import ffi, lib
 
+
+def pow3d(x, y, z, exponent_theta, exponent_phi, exponent_r, shape=None):
+    if shape is None:
+        for w in (x, y, z):
+            if hasattr(w, 'shape'):
+                if shape is None:
+                    shape = w.shape
+                if shape == ():
+                    shape = w.shape
+    # Upshape and make unique
+    w = np.zeros(shape)
+    x = x + w
+    y = y + w
+    z = z + w
+
+    x_buf = ffi.cast("double*", x.ctypes.data)
+    y_buf = ffi.cast("double*", y.ctypes.data)
+    z_buf = ffi.cast("double*", z.ctypes.data)
+
+    lib.pow3d(
+        x_buf, y_buf, z_buf,
+        exponent_theta, exponent_phi, exponent_r,
+        x.size
+    )
+    return x, y, z
+
+
 def mandelbulb(x, y, z, cx, cy, cz, exponent_theta, exponent_phi, exponent_r, max_iter, shape=None):
     if shape is None:
         for w in (x, y, z, cx, cy, cz):

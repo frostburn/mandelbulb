@@ -1,7 +1,12 @@
+from __future__ import division
 from pylab import *
-from mandelbulb import mandelbulb
+from mandelbulb import mandelbulb, pow3d
+from shapes import tetrahedron, cube, merkaba
+from util import generate_mesh_slices, threaded_anti_alias
+from density import illuminate_and_absorb
 import numpy as np
 from threading import Thread, Lock
+
 
 def make_picture_frame(rgb, dither=1.0/256.0):
     if dither:
@@ -10,76 +15,49 @@ def make_picture_frame(rgb, dither=1.0/256.0):
     frame = clip(frame, 0.0, 1.0)
     return frame
 
+
 if __name__ == '__main__':
     scale = 3
-    u_samples = 2**9
-    theta = 0.75
-    phi = 0.5
-    anti_aliasing = 2
-    exponent_theta = 9
-    exponent_phi = 7
-    exponent_r = 9
-    max_iter = 21
+    u_samples = 2**14
+    theta = 0.5
+    phi = 0.6
+    gamma = 0.2
+    zoom = -0.65
+    anti_aliasing = 4
 
-    grid_x = linspace(-1.2, 1.2, scale*108)
-    grid_y = linspace(-1.2, 1.1, scale*108)
-    u = linspace(-1.5, 1.5, u_samples)
-    dx = grid_x[1] - grid_x[0]
-    dy = grid_y[1] - grid_y[0]
-    du = u[1] - u[0]
+    width = 108*scale
+    height = 108*scale
+    depth = u_samples
+    du = 1.0 / u_samples
 
-    grid_x, grid_y = meshgrid(grid_x, grid_y)
+    def source(x, y, z):
+        cx = x + 0
+        cy = y + 0
+        cz = z + 0
 
-    result = array([0*grid_x, 0*grid_x, 0*grid_x])
+        result = x*0 + 1e100
 
-    lock = Lock()
+        for _ in range(32):
+            x, y, z = pow3d(x, y, z, 8, 8, -8)
+            x += cx
+            y += cy
+            z += cz
 
-    def accumulate_subpixels(offset_x, offset_y):
-        global result
-        x = grid_x + offset_x
-        y = grid_y + offset_y
+            result = minimum(x*x + y*y + z*z, result)
 
-        red = ones(x.shape) * 2.0
-        green = ones(x.shape) * 1.2
-        blue = ones(x.shape) * 2.0
-        for z in u:
-            x_ = cos(theta) * x + sin(theta) * z
-            z_ = cos(theta) * z - sin(theta) * x
-            y_ = cos(phi) * y + sin(phi) * z_
-            z_ = cos(phi) * z_ - sin(phi) * y
-            val = mandelbulb(x_, y_, z_, x_, y_, z_, exponent_theta, exponent_phi, exponent_r, max_iter)
-            core = (val == 0)
-            absorption = 10*exp(-(0.1*(val-1))**2)
-            absorption[core] = 5
-            red += 30*core * du
-            red *= exp(-du * absorption)
+        field = result - 0.7
+        core = field < 0
+        illumination = exp(-field*3)
+        illumination = array([illumination, illumination*0.5, illumination*0.2])*50
+        illumination[:, core] = 0
+        absorption = array([core, 2*core, core])*60
+        return illumination, absorption
 
-            absorption = 10*exp(-(0.15*(val-2.5))**2)
-            absorption[core] = 4.5
-            green += 30*core * du
-            green *= exp(-du * absorption)
+    def generate_subpixel_image(offset_x, offset_y):
+        slices = generate_mesh_slices(width, height, depth, 0, 0, 0, zoom, theta, phi, gamma, offset_x, offset_y)
+        image = illuminate_and_absorb(slices, source, array([0.5, 0.35, 0.55]), du)
+        return image
 
-            absorption = 10*exp(-(0.2*(val-4))**2)
-            absorption[core] = 2.5
-            blue += 15*core * du
-            blue *= exp(-du * absorption)
+    image = threaded_anti_alias(generate_subpixel_image, width, height, anti_aliasing)
 
-        lock.acquire()
-        result += array([red**1.3, green**1.1, blue**1.2])*0.092
-        lock.release()
-
-
-    ts = []
-    offsets_x = np.arange(anti_aliasing) / anti_aliasing * dx
-    offsets_y = np.arange(anti_aliasing) / anti_aliasing * dy
-    for i in offsets_x:
-        for j in offsets_y:
-            ts.append(Thread(target=accumulate_subpixels, args=(i, j)))
-            ts[-1].start()
-    for t in ts:
-        t.join()
-
-    result /= anti_aliasing**2
-
-    image = result
     imsave("/tmp/out.png", make_picture_frame(image))
