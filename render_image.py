@@ -1,6 +1,6 @@
 from __future__ import division
 from pylab import *
-from mandelbulb import mandelbulb, pow3d
+from mandelbulb import mandelbulb, pow3d, biaxial_julia
 from shapes import tetrahedron, cube, merkaba
 from util import generate_mesh_slices, threaded_anti_alias
 from density import illuminate_and_absorb
@@ -17,12 +17,13 @@ def make_picture_frame(rgb, dither=1.0/256.0):
 
 
 if __name__ == '__main__':
-    scale = 3
-    u_samples = 2**14
+    scale = 10
+    u_samples = 2**10
     theta = 0.5
     phi = 0.6
     gamma = 0.2
-    zoom = -0.65
+    zoom = -0.8
+    max_iter = 32
     anti_aliasing = 4
 
     width = 108*scale
@@ -31,26 +32,14 @@ if __name__ == '__main__':
     du = 1.0 / u_samples
 
     def source(x, y, z):
-        cx = x + 0
-        cy = y + 0
-        cz = z + 0
-
-        result = x*0 + 1e100
-
-        for _ in range(32):
-            x, y, z = pow3d(x, y, z, 8, 8, -8)
-            x += cx
-            y += cy
-            z += cz
-
-            result = minimum(x*x + y*y + z*z, result)
-
-        field = result - 0.7
+        field = biaxial_julia(x, y, z, 0.67, -0.421, 0.515, -0.41, 5, 5, max_iter)
         core = field < 0
-        illumination = exp(-field*3)
-        illumination = array([illumination, illumination*0.5, illumination*0.2])*50
+        field[core] = 0
+
+        illumination = exp(-0.09*field)
+        illumination = array([illumination, illumination*0.5, illumination*0.2]) * 80
         illumination[:, core] = 0
-        absorption = array([core, 2*core, core])*60
+        absorption = array([core, 2*core, core]) * 100
         return illumination, absorption
 
     def generate_subpixel_image(offset_x, offset_y):

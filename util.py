@@ -1,5 +1,6 @@
 from threading import Thread, Lock
 import numpy as np
+from _routines import ffi
 
 
 def generate_mesh_slices(width, height, depth, center_x, center_y, center_z, zoom, rotation_theta, rotation_phi, rotation_gamma, offset_x, offset_y, depth_dither=1):
@@ -57,3 +58,25 @@ def threaded_anti_alias(generate_subpixel_image, width, height, anti_aliasing, n
     result /= anti_aliasing**2
 
     return result
+
+
+def bufferize(*args, shape=None):
+    if shape is None:
+        for w in args:
+            if hasattr(w, 'shape'):
+                if shape is None:
+                    shape = w.shape
+                if shape == ():
+                    shape = w.shape
+    # Upshape and make unique
+    w = np.zeros(shape)
+
+    refs = []
+    results = []
+    for z in args:
+        z = z + w
+        z_buffer = ffi.cast("double*", z.ctypes.data)
+        refs.append(z)
+        results.append(z_buffer)
+
+    return refs, results

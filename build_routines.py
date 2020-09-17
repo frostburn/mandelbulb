@@ -12,6 +12,14 @@ ffibuilder.cdef(
         double *out,
         int exponent_theta, int exponent_phi, int exponent_r, int max_iterations, int num_samples
     );
+
+    void biaxial_julia(
+        double *x, double *y, double *z,
+        double *c0x, double *c0y,
+        double *c1y, double *c1z,
+        double *out,
+        int exponent0, int exponent1, int max_iterations, int num_samples
+    );
     """
 )
 
@@ -136,6 +144,65 @@ ffibuilder.set_source(
                 x[i], y[i], z[i],
                 cx[i], cy[i], cz[i],
                 exponent_theta, exponent_phi, exponent_r, max_iterations
+            );
+        }
+    }
+
+    double biaxial_julia_eval(
+        double x, double y, double z,
+        double c0x, double c0y,
+        double c1y, double c1z,
+        int exponent0, int exponent1, int max_iterations,
+        double log_exponent1,
+        double log_exponent0
+    ) {
+        int i;
+        double r = 256.0;
+        for (i = 0; i < max_iterations; ++i) {
+            r = x*x + y*y + z*z;
+            if (r > 256) {
+                break;
+            }
+            if (i & 1) {
+                c_pow(&y, &z, exponent1);
+                y += c1y;
+                z += c1z;
+            } else {
+                c_pow(&x, &y, exponent0);
+                x += c0x;
+                y += c0y;
+            }
+        }
+        if (r < 256) {
+            return -r;
+        }
+        double log_log_r = log(log(r));
+        for (;i < max_iterations; ++i) {
+            if (i & 1) {
+                log_log_r += log_exponent1;
+            } else {
+                log_log_r += log_exponent0;
+            }
+        }
+        return log_log_r - 1.7129286210981716;
+    }
+
+    void biaxial_julia(
+        double *x, double *y, double *z,
+        double *c0x, double *c0y,
+        double *c1y, double *c1z,
+        double *out,
+        int exponent0, int exponent1, int max_iterations, int num_samples
+    ) {
+        double log_exponent0 = log(exponent0);
+        double log_exponent1 = log(exponent1);
+        for (int i = 0; i < num_samples; ++i) {
+            out[i] = biaxial_julia_eval(
+                x[i], y[i], z[i],
+                c0x[i], c0y[i],
+                c1y[i], c1z[i],
+                exponent0, exponent1, max_iterations,
+                log_exponent0, log_exponent1
             );
         }
     }

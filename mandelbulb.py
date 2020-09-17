@@ -1,5 +1,6 @@
 import numpy as np
 from _routines import ffi, lib
+from util import bufferize
 
 
 def pow3d(x, y, z, exponent_theta, exponent_phi, exponent_r, shape=None):
@@ -61,4 +62,13 @@ def mandelbulb(x, y, z, cx, cy, cz, exponent_theta, exponent_phi, exponent_r, ma
         result.size
     )
 
+    return result
+
+
+def biaxial_julia(x, y, z, c0x, c0y, c1y, c1z, exponent0, exponent1, max_iter, shape=None):
+    refs, bufs = bufferize(x, y, z, c0x, c0y, c1y, c1z)
+    result = np.zeros(refs[0].shape)
+    result_buf = ffi.cast("double*", result.ctypes.data)
+    args = bufs + [result_buf, exponent0, exponent1, max_iter, result.size]
+    lib.biaxial_julia(*args)
     return result
