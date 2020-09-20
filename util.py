@@ -4,10 +4,10 @@ from _routines import ffi
 
 
 def generate_mesh_slices(width, height, depth, center_x, center_y, center_z, zoom, rotation_theta, rotation_phi, rotation_gamma, offset_x, offset_y, depth_dither=1):
-    ct, st = np.cos(rotation_theta), np.sin(rotation_phi)
+    ct, st = np.cos(rotation_theta), np.sin(rotation_theta)
     cp, sp = np.cos(rotation_phi), np.sin(rotation_phi)
     cg, sg = np.cos(rotation_gamma), np.sin(rotation_gamma)
-    zoom = 2**-zoom / height
+    zoom = 2**-zoom
 
     x = np.arange(width, dtype='float64') + offset_x
     y = np.arange(height, dtype='float64') + offset_y
@@ -15,12 +15,12 @@ def generate_mesh_slices(width, height, depth, center_x, center_y, center_z, zoo
 
     x, y = np.meshgrid(x, y)
 
-    x = (2 * x - width) * zoom
-    y = (2 * y - height) * zoom
+    x = (2 * x - width) * zoom / height
+    y = (2 * y - height) * zoom / height
 
     for z_ in z:
         z_ += np.random.rand(*x.shape) * depth_dither - 0.5*depth_dither
-        z_ = (2 * z_ - depth) * zoom
+        z_ = (2 * z_ - depth) * zoom / depth
         x_, z_ = x*ct + z_*st, z_*ct - x*st
         x_, y_ = x_*cp + y*sp, y*cp - x_*sp
         y_, z_ = y_*cg + z_*sg, z_*cg - y_*sg
