@@ -6,6 +6,8 @@ ffibuilder.cdef(
     """
     void pow3d(double *x, double *y, double *z, int exponent_theta, int exponent_phi, int exponent_r, int num_samples);
 
+    void pow_quaternion(double *x, double *y, double *z, int exponent, int num_samples);
+
     void smooth_mandelbulb(
         double *x, double *y, double *z,
         double *cx, double *cy, double *cz,
@@ -91,6 +93,32 @@ ffibuilder.set_source(
             x[i] *= l;
             y[i] *= l;
             x[i] *= r;
+        }
+    }
+
+    void pow_quaternion(double *x, double *y, double *z, int exponent, int num_samples) {
+        double t;
+        for (int i = 0; i < num_samples; ++i) {
+            double cx = x[i];
+            double cy = y[i];
+            double cz = z[i];
+            x[i] = 1;
+            y[i] = 0;
+            z[i] = 0;
+            int e = exponent;
+            while (e > 0) {
+                if (e & 1) {
+                    t = x[i];
+                    x[i] = cx*x[i] - cy*y[i] - cz*z[i];
+                    y[i] = cx*y[i] + cy*t;
+                    z[i] = cx*z[i] + cz*t;
+                }
+                t = 2*cx;
+                cx = cx*cx - cy*cy - cz*cz;
+                cy *= t;
+                cz *= t;
+                e >>= 1;
+            }
         }
     }
 

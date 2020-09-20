@@ -29,6 +29,19 @@ def pow3d(x, y, z, exponent_theta, exponent_phi, exponent_r, shape=None):
     return x, y, z
 
 
+def pow_quaternion_inplace(x, y, z, exponent):
+    x_buf = ffi.cast("double*", x.ctypes.data)
+    y_buf = ffi.cast("double*", y.ctypes.data)
+    z_buf = ffi.cast("double*", z.ctypes.data)
+
+    lib.pow_quaternion(
+        x_buf, y_buf, z_buf,
+        exponent, x.size
+    )
+
+    return x, y, z
+
+
 def mandelbulb(x, y, z, cx, cy, cz, exponent_theta, exponent_phi, exponent_r, max_iter, shape=None):
     if shape is None:
         for w in (x, y, z, cx, cy, cz):
