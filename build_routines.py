@@ -22,13 +22,14 @@ ffibuilder.cdef(
         double *out,
         int exponent0, int exponent1, int max_iterations, int num_samples
     );
+
+    void buddhabulb(double *x_samples, double *y_samples, double *z_samples, double *cx_samples, double *cy_samples, double *cz_samples, size_t num_samples, unsigned long long *counts, int width, int height, int depth, double x0, double y0, double z0, double *dx, int exponent_theta, int exponent_phi, int exponent_r, int num_iterations, int min_iteration, double bailout);
     """
 )
 
 ffibuilder.set_source(
     "_routines",
     """
-
     double EPSILON = 1e-12;
 
     inline double r_pow(double r, int exponent) {
@@ -153,10 +154,6 @@ ffibuilder.set_source(
             x = x*l + cx;
             y = y*l + cy;
             z = z*r + cz;
-
-            t = cy;
-            cy = 0.95*cy + 0.1*cz;
-            cz = 0.95*cz - 0.1*t;
         }
         return 0;
     }
@@ -232,6 +229,50 @@ ffibuilder.set_source(
                 exponent0, exponent1, max_iterations,
                 log_exponent0, log_exponent1
             );
+        }
+    }
+
+    void eval_buddhabulb(double x, double y, double z, double cx, double cy, double cz, int exponent_theta, int exponent_phi, int exponent_r, int num_iterations, int min_iteration, double bailout, unsigned long long *counts, int width, int height, int depth, double x0, double y0, double z0, double *dx) {
+        for (int i = 0; i < num_iterations; ++i) {
+            double l = x*x + y*y;
+            double r = l + z*z;
+            if (r > bailout) {
+                return;
+            }
+            l = sqrt(l);
+            double t = 1.0 / (l + (l < EPSILON));
+            x *= t;
+            y *= t;
+
+            r = sqrt(r);
+            t = 1.0 / (r + (r < EPSILON));
+            l *= t;
+            z *= t;
+
+            r = r_pow(r, exponent_r);
+            c_pow(&x, &y, exponent_theta);
+            c_pow(&l, &z, exponent_phi);
+
+            l *= r;
+
+            x = x*l + cx;
+            y = y*l + cy;
+            z = z*r + cz;
+
+            if (i >= min_iteration) {
+                int index_x = x0 + x*dx[0] + y*dx[1] + z*dx[2];
+                int index_y = y0 + x*dx[3] + y*dx[4] + z*dx[5];
+                int index_z = z0 + x*dx[6] + y*dx[7] + z*dx[8];
+                if (index_x >= 0 && index_x < width && index_y >= 0 && index_y < height && index_z >= 0 && index_z < depth) {
+                    __sync_add_and_fetch(counts + index_x + (index_y + index_z*height)*width, 1);
+                }
+            }
+        }
+    }
+
+    void buddhabulb(double *x_samples, double *y_samples, double *z_samples, double *cx_samples, double *cy_samples, double *cz_samples, size_t num_samples, unsigned long long *counts, int width, int height, int depth, double x0, double y0, double z0, double *dx, int exponent_theta, int exponent_phi, int exponent_r, int num_iterations, int min_iteration, double bailout) {
+        for (size_t i=0; i < num_samples; ++i) {
+            eval_buddhabulb(x_samples[i], y_samples[i], z_samples[i], cx_samples[i], cy_samples[i], cz_samples[i], exponent_theta, exponent_phi, exponent_r, num_iterations, min_iteration, bailout, counts, width, height, depth, x0, y0, z0, dx);
         }
     }
     """
